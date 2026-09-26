@@ -153,15 +153,15 @@
     if (panel) panel.classList.remove('hidden');
   }
 
+  let hls = null;
+  let retryCount = 0;
+  let retryTimer = null;
+
   if (!src){
     show(panelEmpty);
   } else {
     startStream(decodeURIComponent(src));
   }
-
-  let hls = null;
-  let retryCount = 0;
-  let retryTimer = null;
 
   function startStream(url){
     show(panelLoading);
