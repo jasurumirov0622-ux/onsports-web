@@ -136,6 +136,14 @@
 
 <script>
 (function(){
+  const PROXY_BASE = 'https://bold-band-499d.jasurumirov0622.workers.dev/';
+
+  function proxied(url){
+    // already proxied bo'lsa, qayta o'rab yubormaslik
+    if (url.indexOf(PROXY_BASE) === 0) return url;
+    return PROXY_BASE + '?url=' + encodeURIComponent(url);
+  }
+
   const params = new URLSearchParams(location.search);
   const src = params.get('src');
   const name = params.get('name');
@@ -163,11 +171,12 @@
     startStream(decodeURIComponent(src));
   }
 
-  function startStream(url){
+  function startStream(rawUrl){
     show(panelLoading);
     statusText.textContent = '';
 
-    const isM3U8 = /\.m3u8($|\?)/i.test(url);
+    const url = proxied(rawUrl);
+    const isM3U8 = /\.m3u8($|\?)/i.test(rawUrl);
 
     if (isM3U8 && window.Hls && Hls.isSupported()){
       if (hls) { hls.destroy(); }
@@ -193,7 +202,7 @@
             break;
           default:
             fail('Efirni ochib bo\u2019lmadi.');
-            scheduleRetry(() => startStream(url));
+            scheduleRetry(() => startStream(rawUrl));
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl') || !isM3U8){
@@ -201,7 +210,7 @@
       video.addEventListener('loadedmetadata', () => attemptPlay(), { once:true });
       video.addEventListener('error', () => {
         fail('Efirni ochib bo\u2019lmadi.');
-        scheduleRetry(() => startStream(url));
+        scheduleRetry(() => startStream(rawUrl));
       }, { once:true });
     } else {
       fail('Bu qurilma ushbu formatni qo\u2019llamaydi.');
