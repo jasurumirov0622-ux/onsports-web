@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>onsports.uz — Jonli efir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.15/hls.min.js"></script>
+<style>
+  :root{
+    --bg:#0A0C10; --surface:#14171F; --surface2:#1C202B;
+    --text:#EDEFF4; --muted:#8A93A6;
+    --live:#FF4630; --ok:#33D3A6;
+    --font-display:'Oswald',sans-serif; --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#0A0C10; --surface:#14171F; --surface2:#1C202B; --text:#EDEFF4; --muted:#8A93A6;
+    }
+  }
+  :root[data-theme="dark"]{ --bg:#0A0C10; --surface:#14171F; --surface2:#1C202B; --text:#EDEFF4; --muted:#8A93A6; }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);overscroll-behavior:none;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+
+  .app{
+    height:100%;display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+
+  header{
+    display:flex;align-items:center;gap:10px;
+    padding:12px 16px;background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);
+    position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:5;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--live);flex:none;
+    box-shadow:0 0 0 0 rgba(255,70,48,.6); animation:pulse 1.6s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(255,70,48,.55);}
+    70%{box-shadow:0 0 0 9px rgba(255,70,48,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,70,48,0);}
+  }
+  .live-label{font-family:var(--font-display);font-weight:600;font-size:12px;letter-spacing:.04em;color:var(--live);}
+  .chan-name{font-family:var(--font-display);font-weight:500;font-size:15px;color:var(--text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .brand{margin-left:auto;font-family:var(--font-display);font-size:12px;color:var(--muted);letter-spacing:.03em;flex:none;}
+
+  .stage{position:relative;flex:1;min-height:0;background:#000;display:flex;align-items:center;justify-content:center;}
+  video{width:100%;height:100%;object-fit:contain;background:#000;}
+
+  .center-panel{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;padding:24px;text-align:center;background:radial-gradient(ellipse at center,rgba(20,23,31,.55),rgba(10,12,16,.92));
+  }
+  .center-panel.hidden{display:none;}
+  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.15);
+    border-top-color:var(--live);animation:spin 0.9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .panel-title{font-family:var(--font-display);font-size:17px;font-weight:600;}
+  .panel-sub{font-size:13px;color:var(--muted);max-width:320px;line-height:1.5;}
+  .retry-btn{
+    margin-top:4px;padding:10px 22px;border-radius:999px;border:none;
+    background:var(--live);color:#fff;font-family:var(--font-display);font-weight:600;
+    font-size:13px;letter-spacing:.02em;cursor:pointer;
+  }
+  .retry-btn:active{transform:scale(.97);}
+
+  .tapzone{position:absolute;inset:0;z-index:2;}
+
+  footer{
+    display:flex;align-items:center;gap:14px;padding:10px 16px;
+    background:linear-gradient(0deg,rgba(0,0,0,.6),transparent);
+    position:absolute;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;z-index:5;
+  }
+  .ctrl{
+    background:none;border:none;color:var(--text);width:34px;height:34px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.9;
+  }
+  .ctrl svg{width:20px;height:20px;}
+  .status-text{font-size:11px;color:var(--muted);margin-left:auto;font-family:var(--font-display);letter-spacing:.02em;}
+
+  :focus-visible{outline:2px solid var(--ok);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){ .dot,.spinner{animation:none;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <span class="dot" aria-hidden="true"></span>
+    <span class="live-label">JONLI</span>
+    <span class="chan-name" id="chanName">Kanal</span>
+    <span class="brand">onsports.uz</span>
+  </header>
+
+  <div class="stage">
+    <video id="video" playsinline autoplay muted></video>
+    <div class="tapzone" id="tapzone"></div>
+
+    <div class="center-panel" id="panelLoading">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="panel-title">Ulanmoqda…</div>
+      <div class="panel-sub">Kanal signali yuklanmoqda, biroz kuting.</div>
+    </div>
+
+    <div class="center-panel hidden" id="panelError">
+      <div class="panel-title">Signal uzildi</div>
+      <div class="panel-sub" id="errorSub">Efir vaqtincha to'xtadi. Qayta urinib ko'ring.</div>
+      <button class="retry-btn" id="retryBtn">🔄 Qayta ulanish</button>
+    </div>
+
+    <div class="center-panel hidden" id="panelEmpty">
+      <div class="panel-title">Kanal tanlanmagan</div>
+      <div class="panel-sub">Botdagi "📺 Ko'rish" bo'limidan kanal tanlang — sahifa avtomatik ochiladi.</div>
+    </div>
+  </div>
+
+  <footer>
+    <button class="ctrl" id="playBtn" aria-label="Play/Pause">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <button class="ctrl" id="muteBtn" aria-label="Ovoz">
+      <svg id="muteOnIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12A4.5 4.5 0 0014 8v8a4.5 4.5 0 002.5-4zM3 9v6h4l5 5V4L7 9H3z"/></svg>
+      <svg id="muteOffIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M3 9v6h4l5 5V4L7 9H3zm12.6 3l2.7-2.7-1.4-1.4L14.2 10l-2.7-2.7-1.4 1.4L12.8 12l-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4L15.6 12z"/></svg>
+    </button>
+    <button class="ctrl" id="fsBtn" aria-label="To'liq ekran">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+    </button>
+    <span class="status-text" id="statusText"></span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  const PROXY_BASE = 'https://bold-band-499d.jasurumirov0622.workers.dev/';
+
+  function proxied(url){
+    // already proxied bo'lsa, qayta o'rab yubormaslik
+    if (url.indexOf(PROXY_BASE) === 0) return url;
+    return PROXY_BASE + '?url=' + encodeURIComponent(url);
+  }
+
+  const params = new URLSearchParams(location.search);
+  const src = params.get('src');
+  const name = params.get('name');
+  if (name) document.getElementById('chanName').textContent = decodeURIComponent(name);
+
+  const video = document.getElementById('video');
+  const panelLoading = document.getElementById('panelLoading');
+  const panelError = document.getElementById('panelError');
+  const panelEmpty = document.getElementById('panelEmpty');
+  const errorSub = document.getElementById('errorSub');
+  const statusText = document.getElementById('statusText');
+
+  function show(panel){
+    [panelLoading, panelError, panelEmpty].forEach(p => p.classList.add('hidden'));
+    if (panel) panel.classList.remove('hidden');
+  }
+
+  let hls = null;
+  let retryCount = 0;
+  let retryTimer = null;
+
+  if (!src){
+    show(panelEmpty);
+  } else {
+    startStream(decodeURIComponent(src));
+  }
+
+  function startStream(rawUrl){
+    show(panelLoading);
+    statusText.textContent = '';
+
+    const url = proxied(rawUrl);
+    const isM3U8 = /\.m3u8($|\?)/i.test(rawUrl);
+
+    if (isM3U8 && window.Hls && Hls.isSupported()){
+      if (hls) { hls.destroy(); }
+      hls = new Hls({
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        maxBufferLength: 20,
+        liveSyncDurationCount: 3,
+      });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      console.log('[DEBUG] HLS yaratildi, source yuklanmoqda:', url);
+      hls.on(Hls.Events.MANIFEST_PARSED, (evt, data) => {
+        console.log('[DEBUG] MANIFEST_PARSED, levels:', data.levels);
+        attemptPlay();
+      });
+      hls.on(Hls.Events.LEVEL_LOADED, (evt, data) => {
+        console.log('[DEBUG] LEVEL_LOADED, fragments soni:', data.details.fragments.length, data.details);
+      });
+      hls.on(Hls.Events.FRAG_LOADING, (evt, data) => {
+        console.log('[DEBUG] FRAG_LOADING:', data.frag.url);
+      });
+      hls.on(Hls.Events.FRAG_LOADED, (evt, data) => {
+        console.log('[DEBUG] FRAG_LOADED:', data.frag.url);
+      });
+      hls.on(Hls.Events.ERROR, (evt, data) => {
+        console.log('[DEBUG] HLS ERROR:', data.type, data.details, 'fatal:', data.fatal, data);
+        if (!data.fatal) return;
+        switch(data.type){
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            statusText.textContent = 'qayta ulanmoqda…';
+            scheduleRetry(() => { hls.startLoad(); });
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            statusText.textContent = 'tuzatilmoqda…';
+            hls.recoverMediaError();
+            break;
+          default:
+            fail('Efirni ochib bo\u2019lmadi.');
+            scheduleRetry(() => startStream(rawUrl));
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl') || !isM3U8){
+      video.src = url;
+      video.addEventListener('loadedmetadata', () => attemptPlay(), { once:true });
+      video.addEventListener('error', () => {
+        fail('Efirni ochib bo\u2019lmadi.');
+        scheduleRetry(() => startStream(rawUrl));
+      }, { once:true });
+    } else {
+      fail('Bu qurilma ushbu formatni qo\u2019llamaydi.');
+    }
+  }
+
+  function attemptPlay(){
+    video.play().then(() => show(null)).catch(() => {
+      // autoplay blocked — muted retry, then show tap-to-play via panelLoading dismiss
+      video.muted = true;
+      video.play().then(() => show(null)).catch(() => show(null));
+    });
+  }
+
+  function fail(msg){
+    errorSub.textContent = msg;
+    show(panelError);
+  }
+
+  function scheduleRetry(fn){
+    clearTimeout(retryTimer);
+    retryCount++;
+    const delay = Math.min(2000 * retryCount, 10000);
+    retryTimer = setTimeout(fn, delay);
+  }
+
+  document.getElementById('retryBtn').addEventListener('click', () => {
+    retryCount = 0;
+    startStream(decodeURIComponent(src));
+  });
+
+  video.addEventListener('waiting', () => { statusText.textContent = 'yuklanmoqda…'; });
+  video.addEventListener('playing', () => { statusText.textContent = ''; retryCount = 0; show(null); });
+
+  // Controls
+  const playBtn = document.getElementById('playBtn');
+  const playIcon = document.getElementById('playIcon');
+  const pauseIcon = document.getElementById('pauseIcon');
+  playBtn.addEventListener('click', () => {
+    if (video.paused) video.play(); else video.pause();
+  });
+  video.addEventListener('play', () => { playIcon.style.display='none'; pauseIcon.style.display=''; });
+  video.addEventListener('pause', () => { playIcon.style.display=''; pauseIcon.style.display='none'; });
+
+  const muteBtn = document.getElementById('muteBtn');
+  const muteOnIcon = document.getElementById('muteOnIcon');
+  const muteOffIcon = document.getElementById('muteOffIcon');
+  muteBtn.addEventListener('click', () => {
+    video.muted = !video.muted;
+    muteOnIcon.style.display = video.muted ? 'none' : '';
+    muteOffIcon.style.display = video.muted ? '' : 'none';
+  });
+  // init icon state (starts muted for autoplay)
+  muteOnIcon.style.display = 'none'; muteOffIcon.style.display = '';
+
+  document.getElementById('fsBtn').addEventListener('click', () => {
+    const el = document.querySelector('.stage');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (el.requestFullscreen) el.requestFullscreen();
+  });
+
+  document.getElementById('tapzone').addEventListener('click', () => {
+    if (video.paused) video.play(); else video.pause();
+  });
+
+  try {
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+    }
+  } catch(e){}
+})();
+</script>
+</body>
+</html>
